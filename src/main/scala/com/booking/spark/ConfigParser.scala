@@ -11,12 +11,13 @@ case class IllegalFormatException(
 ) extends RuntimeException(message, cause)
 
 /**
- * Simple utility class for loading configuration from yml file
- * This is the structure of the config file:
- *
- * hbase:
- * zookeeper_quorum:  ['hbase-zk1-host', 'hbase-zkN-host']
- */
+  * Simple utility class for loading configuration from yml file
+  * This is the structure of the config file:
+  *
+  * hbase:
+  * zookeeper_quorum:  ['hbase-zk1-host', 'hbase-zkN-host']
+  * schema: ['family1:qualifier1:type1', 'familyN:qualifierN:typeN']
+  */
 class ConfigParser(configPath: String) {
   val yaml = new Yaml()
   val in = Files.newInputStream(Paths.get(configPath))
@@ -37,7 +38,13 @@ class ConfigParser(configPath: String) {
   def getZooKeeperQuorum(): String = {
     return config.get("hbase")
       .get("zookeeper_quorum")
-      .asInstanceOf[util.ArrayList[String]]
-      .asScala.mkString(", ")
+      .asInstanceOf[List[String]]
+      .mkString(", ")
+  }
+
+  def getSchema(): List[String] = {
+    return config.get("hbase")
+      .get("schema")
+      .asInstanceOf[List[String]]
   }
 }
