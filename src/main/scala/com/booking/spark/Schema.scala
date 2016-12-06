@@ -6,22 +6,24 @@ import org.apache.hadoop.hbase.client.{ Result, Scan }
 import org.apache.hadoop.hbase.filter.{ FilterList, FirstKeyOnlyFilter, KeyOnlyFilter }
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.sql.types.{ DataType, DoubleType, IntegerType, LongType, StringType, StructField, StructType }
-import com.google.gson.JsonParser
+import org.apache.spark.sql.types.{ DataType, DoubleType, IntegerType, LongType, StringType, StructField, StructType, Metadata }
+import com.google.gson.{JsonParser, GsonBuilder}
 
 import scala.collection.JavaConversions._
 
 
 object HBaseSchema {
+  private val gson = new GsonBuilder().create()
 
-  private def hBaseToSparkSQL(dt: String): DataType = {
-    DataType.fromJson("\"" + dt + "\"")
-  }
+  private def hBaseToSparkSQL(dt: String): DataType = DataType.fromJson(gson.toJson(dt))
 
   private def transformSchema(fields: List[String]): StructType = {
     StructType(fields.map( field =>
       field.split(':') match {
-        case Array(family, qualifier, dt) => StructField(qualifier, hBaseToSparkSQL(dt), true)
+        case Array(family, qualifier, dt) => {
+          val metadata: Metadata = Metadata.fromJson(gson.toJson(Map("family" -> family)))
+          StructField(qualifier, hBaseToSparkSQL(dt), true, metadata)
+        }
       }
     ))
   }
@@ -33,6 +35,7 @@ object HBaseSchema {
 
 
 object MySQLSchema {
+  private val gson = new GsonBuilder().create()
 
   /** Convert MySQL datatype strings to Spark datatypes
     * @param MySQL datatype
@@ -74,7 +77,8 @@ object MySQLSchema {
       }}).sortBy(_._1)
 
     return StructType(sortedSchema.map({ field =>
-      StructField(field._2, mySQLToSparkSQL(field._3), true)
+      val metadata: Metadata = Metadata.fromJson(gson.toJson(Map("family" -> "d")))
+      StructField(field._2, mySQLToSparkSQL(field._3), true, metadata)
     }))
   }
 

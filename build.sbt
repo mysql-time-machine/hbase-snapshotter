@@ -6,6 +6,7 @@ libraryDependencies ++= Seq(
   "com.google.guava" % "guava" % "15.0",
   "com.google.code.gson" % "gson" % "2.2.4",
   "com.github.scopt" %% "scopt" % "3.4.0",
+  "com.typesafe" % "config" % "1.3.1",
   "org.yaml" % "snakeyaml" % "1.17",
   "org.apache.hadoop" % "hadoop-common" % "2.6.0",
   "org.apache.hbase" % "hbase-common" % "1.0.0",
