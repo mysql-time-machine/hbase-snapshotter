@@ -3,8 +3,9 @@ package com.booking.spark
 import scala.collection.JavaConversions._
 
 import com.booking.sql.{DataTypeParser, MySQLDataType}
-import com.cloudera.spark.hbase.HBaseContext
+import org.apache.hadoop.hbase.spark.HBaseContext
 import com.google.gson.{GsonBuilder, JsonParser, JsonObject, Gson}
+import org.apache.hadoop.hbase.{TableName}
 import org.apache.hadoop.hbase.client.{Result, Scan}
 import org.apache.hadoop.hbase.filter.{FilterList, FirstKeyOnlyFilter, KeyOnlyFilter}
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
@@ -149,7 +150,7 @@ object MySQLSchema {
     scan.addColumn(Bytes.toBytes("d"), Bytes.toBytes("schemaPostChange"))
     scan.setFilter(new FilterList(FilterList.Operator.MUST_PASS_ALL, new FirstKeyOnlyFilter(), new KeyOnlyFilter()))
 
-    val rdd = hbc.hbaseRDD(schemaTableName, scan, { r: (ImmutableBytesWritable, Result) => r._2 })
+    val rdd = hbc.hbaseRDD(TableName.valueOf(schemaTableName), scan, { r: (ImmutableBytesWritable, Result) => r._2 })
     val row = rdd.top(1)(keyOrdering).last.getRow()
 
     /* get correct schema json dump: since we want to use
@@ -162,7 +163,7 @@ object MySQLSchema {
     fullScan.addColumn(Bytes.toBytes("d"), Bytes.toBytes("schemaPostChange"))
     fullScan.setFilter(new FirstKeyOnlyFilter())
 
-    val fullRDD = hbc.hbaseRDD(schemaTableName, fullScan, { r: (ImmutableBytesWritable, Result) => r._2 })
+    val fullRDD = hbc.hbaseRDD(TableName.valueOf(schemaTableName), fullScan, { r: (ImmutableBytesWritable, Result) => r._2 })
 
     val value =
       Bytes.toStringBinary(

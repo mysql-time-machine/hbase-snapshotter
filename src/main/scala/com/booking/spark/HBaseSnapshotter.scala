@@ -4,11 +4,10 @@ import com.booking.sql.{DataTypeParser, MySQLDataType}
 import java.io.File
 
 import java.util.NavigableMap
-import scala.collection.JavaConversions._
 
 import com.google.gson.{JsonObject, JsonParser}
-import com.cloudera.spark.hbase.HBaseContext
-import org.apache.hadoop.hbase.HBaseConfiguration
+import org.apache.hadoop.hbase.spark.HBaseContext
+import org.apache.hadoop.hbase.{TableName, HBaseConfiguration}
 import org.apache.hadoop.hbase.client.{Result, Scan, Get, HTable}
 import org.apache.hadoop.hbase.filter.{FilterList, FirstKeyOnlyFilter, KeyOnlyFilter}
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
@@ -99,7 +98,8 @@ object HBaseSnapshotter {
 
     val scan = new Scan()
     if (Settings.hbaseTimestamp > -1) scan.setTimeRange(0, Settings.hbaseTimestamp)
-    val hbaseRDD = hbc.hbaseRDD(Settings.hbaseTable, scan, { r: (ImmutableBytesWritable, Result) => r._2 })
+
+    val hbaseRDD = hbc.hbaseRDD(TableName.valueOf(Settings.hbaseTable), scan, { r: (ImmutableBytesWritable, Result) => r._2 })
 
     val rowRDD = hbaseRDD.map({ r => transformMapToRow(r, schema, true) })
     val dataFrame = hc.createDataFrame(rowRDD, schema)

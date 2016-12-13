@@ -1,26 +1,23 @@
-resolvers ++= Seq(
-  "Hadoop Releases" at "https://repository.cloudera.com/artifactory/cloudera-repos/"
-)
+resolvers += "Cloudera repo" at "https://repository.cloudera.com/content/repositories/releases/"
 
 libraryDependencies ++= Seq(
+  "org.apache.hbase" % "hbase-spark" % "1.2.0-cdh5.8.2",
+  "org.apache.hbase" % "hbase-common" % "1.2.0-cdh5.8.2",
+  "org.apache.hbase" % "hbase-client" % "1.2.0-cdh5.8.2",
+  "org.apache.hbase" % "hbase-server" % "1.2.0-cdh5.8.2",
+  "org.apache.spark" % "spark-core_2.10" % "1.6.0-cdh5.8.2" % "provided",
+  "org.apache.spark" % "spark-hive_2.10" % "1.6.0-cdh5.8.2" % "provided",
+  "org.apache.spark" % "spark-streaming_2.10" % "1.6.0-cdh5.8.2" % "provided",
   "com.google.code.gson" % "gson" % "2.2.4",
   "com.typesafe" % "config" % "1.3.1",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0",
-  "org.apache.hadoop" % "hadoop-common" % "2.6.0",
-  "org.apache.hbase" % "hbase-common" % "1.2.0-cdh5.8.2",
-  "org.apache.hbase" % "hbase-client" % "1.2.0-cdh5.8.2",
-  "org.apache.hbase" % "hbase-server" % "1.2.0-cdh5.8.2" excludeAll(
-    ExclusionRule("org.mortbay.jetty")
-  ),
-
-  "org.apache.spark" %% "spark-core" % "2.0.2" % "provided",
-  "org.apache.spark" %% "spark-hive" % "2.0.2" % "provided",
-  "org.apache.spark" %% "spark-yarn" % "2.0.2" % "provided",
-  "com.cloudera" % "spark-hbase" % "0.0.2-clabs" excludeAll(
-    ExclusionRule("org.mortbay.jetty")
-  ),
-
   "org.scalatest" %% "scalatest" % "3.0.0" % "test"
+
+)
+
+excludeDependencies ++= Seq(
+  "org.mortbay.jetty",
+  "org.cloudera.logredactor"
 )
 
 assemblyMergeStrategy in assembly := {
