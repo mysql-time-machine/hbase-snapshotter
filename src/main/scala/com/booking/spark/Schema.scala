@@ -1,15 +1,26 @@
 package com.booking.spark
 
+import scala.collection.JavaConversions._
+
 import com.booking.sql.{DataTypeParser, MySQLDataType}
 import com.cloudera.spark.hbase.HBaseContext
-import org.apache.hadoop.hbase.client.{ Result, Scan }
-import org.apache.hadoop.hbase.filter.{ FilterList, FirstKeyOnlyFilter, KeyOnlyFilter }
+import com.google.gson.{GsonBuilder, JsonParser, JsonObject, Gson}
+import org.apache.hadoop.hbase.client.{Result, Scan}
+import org.apache.hadoop.hbase.filter.{FilterList, FirstKeyOnlyFilter, KeyOnlyFilter}
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.sql.types.{ DataType, DoubleType, IntegerType, LongType, StringType, StructField, StructType, Metadata }
-import com.google.gson.{JsonParser, GsonBuilder}
+import org.apache.spark.sql.types.{DataType, DoubleType, IntegerType, LongType, Metadata, StringType, StructField, StructType}
 
-import scala.collection.JavaConversions._
+
+object Utils {
+  def stringMapToJson(stringMap: Map[String, String]): String = {
+    "{" + stringMap.map( x => {
+      val k = x._1
+      val v = x._2
+      s"""\"$k\": \"$v\""""
+    }).mkString(",") + "}"
+  }
+}
 
 
 object HBaseSchema {
@@ -21,7 +32,7 @@ object HBaseSchema {
     StructType(fields.map( field =>
       field.split(':') match {
         case Array(family, qualifier, dt) => {
-          val metadata: Metadata = Metadata.fromJson(gson.toJson(Map("family" -> family)))
+          val metadata: Metadata = Metadata.fromJson(Utils.stringMapToJson(Map("family" -> family)))
           StructField(qualifier, hBaseToSparkSQL(dt), true, metadata)
         }
       }
@@ -60,8 +71,12 @@ object MySQLSchema {
     * @return Spark schema
     */
   private def transformSchema(table: String, value: String): StructType = {
+    val tableName = table.split("\\.") match {
+      case Array(_db, _table) => _table
+      case Array(_table) => _table
+    }
     val schemaObject = new JsonParser().parse(value)
-    val tableSchema = schemaObject.getAsJsonObject().getAsJsonObject(table)
+    val tableSchema = schemaObject.getAsJsonObject().getAsJsonObject(tableName)
     val columnIndexToNameMap = tableSchema.getAsJsonObject("columnIndexToNameMap")
     val columnsSchema = tableSchema.getAsJsonObject("columnsSchema")
 
@@ -76,10 +91,33 @@ object MySQLSchema {
         (columnIndex, columnName, columnType)
       }}).sortBy(_._1)
 
-    return StructType(sortedSchema.map({ field =>
-      val metadata: Metadata = Metadata.fromJson(gson.toJson(Map("family" -> "d")))
-      StructField(field._2, mySQLToSparkSQL(field._3), true, metadata)
-    }))
+    /* "hbase_row_key" will be the first column in hive land.  It is meant
+     *  to be used for deduplicating rows in delta imports containing
+     *  row updates.  (group by hbase_row_key and select the latest)
+     */
+    val hbaseRowKey = StructField(
+      "hbase_row_key",
+      StringType,
+      false,
+      Metadata.fromJson(Utils.stringMapToJson(Map("key" -> "true")))
+    )
+
+    /* "status" is a fake column inserted by the replicator.  It denotes
+     * whether the row is the result of a schema change (deletion,
+     * update, etc)
+     */
+    val hbaseRowStatus = StructField(
+      "hbase_row_status",
+      StringType,
+      false,
+      Metadata.fromJson(Utils.stringMapToJson(Map("status" -> "true", "family" -> "d"))))
+
+    return StructType(
+      hbaseRowKey +: hbaseRowStatus +:
+        sortedSchema.map({ field =>
+          val metadata: Metadata = Metadata.fromJson(Utils.stringMapToJson(Map("family" -> "d")))
+          StructField(field._2, mySQLToSparkSQL(field._3), true, metadata)
+        }))
   }
 
 

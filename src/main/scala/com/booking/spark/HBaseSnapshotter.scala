@@ -46,29 +46,38 @@ object HBaseSnapshotter {
     * we need to feed them to an object of type Row. The elements should be in the same order
     * as the columns are written in the schema.
     *
-    * @param familyMap A hashmap holding the values of the current row.
-    * @param schema a struct that specifies how the schema would look like in Hive table.
+    * @param result a Result holding the values of the current row.
+    * @param schema a StructType that specifies how the schema would look like in Hive table.
+    * @param keepKey a Boolean that indicates whether we should keep the HBase row key value.
     * @return an object of type Row holding the row data.
     */
-  def transformMapToRow(familyMap: FamilyMap, schema: StructType): Row = {
-    Row.fromSeq(for (field: StructField <- schema.fields) yield {
-      try {
-        val fieldValue: String = Bytes.toStringBinary(familyMap
-          .get(Bytes.toBytes(field.metadata.getString("family")))
-          .get(Bytes.toBytes(field.name))
-          .lastEntry().getValue)
+  def transformMapToRow(result: Result, schema: StructType, keepKey: Boolean): Row = {
+    val familyMap: FamilyMap = result.getMap()
+    val fields = for (field: StructField <- schema.fields) yield {
+      if (keepKey && field.metadata.contains("key"))
+        Bytes.toStringBinary(result.getRow())
+      else
+        try {
+          val fieldValue: String = Bytes.toStringBinary(familyMap
+            .get(Bytes.toBytes(field.metadata.getString("family")))
+            .get(Bytes.toBytes(field.name))
+            .lastEntry().getValue)
 
-        field.dataType match {
-          case IntegerType => fieldValue.toInt
-          case LongType => fieldValue.toLong
-          case DoubleType => fieldValue.toDouble
-          case _ => fieldValue
+          field.dataType match {
+            case IntegerType => fieldValue.toInt
+            case LongType => fieldValue.toLong
+            case DoubleType => fieldValue.toDouble
+            case _ => fieldValue
+          }
         }
-      }
-      catch {
-        case e: Exception => null
-      }
-    })
+        catch {
+          case e: Exception => {
+            println(e)
+            null
+          }
+        }
+    }
+    Row.fromSeq(fields)
   }
 
   def main(cmdArgs: Array[String]): Unit = {
@@ -85,15 +94,16 @@ object HBaseSnapshotter {
     val hc: HiveContext = new HiveContext(sc)
     val hbc: HBaseContext = new HBaseContext(sc, hbaseConfig)
 
-    val schema: StructType = HBaseSchema(Settings.hbaseSchema)
-    // val schema: StructType = MySQLSchema(hbc, Settings.mysqlTable, Settings.mysqlSchema, Settings.hbaseTimestamp)
+    // val schema: StructType = HBaseSchema(Settings.hbaseSchema)
+    val schema: StructType = MySQLSchema(hbc, Settings.mysqlTable, Settings.mysqlSchema, Settings.hbaseTimestamp)
 
     val scan = new Scan()
     if (Settings.hbaseTimestamp > -1) scan.setTimeRange(0, Settings.hbaseTimestamp)
     val hbaseRDD = hbc.hbaseRDD(Settings.hbaseTable, scan, { r: (ImmutableBytesWritable, Result) => r._2 })
 
-    val rowRDD = hbaseRDD.map({ r => transformMapToRow(r.getMap(), schema) })
+    val rowRDD = hbaseRDD.map({ r => transformMapToRow(r, schema, true) })
     val dataFrame = hc.createDataFrame(rowRDD, schema)
+    dataFrame.show(10)
     dataFrame.write.mode(SaveMode.Overwrite).saveAsTable(Settings.hiveTable)
   }
 }

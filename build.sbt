@@ -3,29 +3,25 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.google.guava" % "guava" % "15.0",
   "com.google.code.gson" % "gson" % "2.2.4",
-  "com.github.scopt" %% "scopt" % "3.4.0",
   "com.typesafe" % "config" % "1.3.1",
-  "org.yaml" % "snakeyaml" % "1.17",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0",
   "org.apache.hadoop" % "hadoop-common" % "2.6.0",
-  "org.apache.hbase" % "hbase-common" % "1.0.0",
-  "org.apache.hbase" % "hbase-client" % "1.0.0",
-  "org.apache.hbase" % "hbase-server" % "1.0.0" excludeAll(
+  "org.apache.hbase" % "hbase-common" % "1.2.0-cdh5.8.2",
+  "org.apache.hbase" % "hbase-client" % "1.2.0-cdh5.8.2",
+  "org.apache.hbase" % "hbase-server" % "1.2.0-cdh5.8.2" excludeAll(
     ExclusionRule("org.mortbay.jetty")
   ),
 
-  "org.apache.spark" %% "spark-core" % "1.6.0" % "provided",
-  "org.apache.spark" %% "spark-hive" % "1.6.0" % "provided",
-  "org.apache.spark" %% "spark-yarn" % "1.6.0" % "provided",
+  "org.apache.spark" %% "spark-core" % "2.0.2" % "provided",
+  "org.apache.spark" %% "spark-hive" % "2.0.2" % "provided",
+  "org.apache.spark" %% "spark-yarn" % "2.0.2" % "provided",
   "com.cloudera" % "spark-hbase" % "0.0.2-clabs" excludeAll(
     ExclusionRule("org.mortbay.jetty")
   ),
 
   "org.scalatest" %% "scalatest" % "3.0.0" % "test"
 )
-
-dependencyOverrides += "com.google.guava" % "guava" % "15.0"
 
 assemblyMergeStrategy in assembly := {
   case PathList("javax", "servlet", xs @ _*) => MergeStrategy.last
