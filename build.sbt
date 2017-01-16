@@ -1,8 +1,17 @@
-resolvers += "Cloudera repo" at "https://repository.cloudera.com/content/repositories/releases/"
+name := "HBaseSnapshotter"
+version := "2.0"
+scalaVersion := "2.10.4"
+exportJars := true
+
+resolvers ++= Seq(
+  Resolver.sonatypeRepo("public"),
+  "Cloudera repo" at "https://repository.cloudera.com/content/repositories/releases/"
+)
 
 libraryDependencies ++= Seq(
   "org.apache.hbase" % "hbase-spark" % "1.2.0-cdh5.8.2",
   "org.apache.hbase" % "hbase-common" % "1.2.0-cdh5.8.2",
+  "org.apache.hbase" % "hbase-hadoop-compat" % "1.2.0-cdh5.8.2",
   "org.apache.hbase" % "hbase-client" % "1.2.0-cdh5.8.2",
   "org.apache.hbase" % "hbase-server" % "1.2.0-cdh5.8.2",
   "org.apache.spark" % "spark-core_2.10" % "1.6.0-cdh5.8.2" % "provided",
@@ -10,7 +19,8 @@ libraryDependencies ++= Seq(
   "org.apache.spark" % "spark-streaming_2.10" % "1.6.0-cdh5.8.2" % "provided",
   "com.google.code.gson" % "gson" % "2.2.4",
   "com.typesafe" % "config" % "1.3.1",
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0",
+  "org.slf4j" % "slf4j-api" % "1.7.5",
+  "org.slf4j" % "slf4j-simple" % "1.7.5",
   "org.scalatest" %% "scalatest" % "3.0.0" % "test"
 
 )
@@ -28,6 +38,7 @@ assemblyMergeStrategy in assembly := {
   case PathList("com", "esotericsoftware", xs @ _*) => MergeStrategy.last
   case PathList("com", "codahale", xs @ _*) => MergeStrategy.last
   case PathList("com", "yammer", xs @ _*) => MergeStrategy.last
+  case PathList("org", "slf4j", xs @ _*) => MergeStrategy.last
   case "overview.html" => MergeStrategy.rename
   case "plugin.xml" => MergeStrategy.rename
   case "parquet.thrift" => MergeStrategy.rename

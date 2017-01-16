@@ -2,9 +2,8 @@ package com.booking.spark
 
 import com.booking.sql.{DataTypeParser, MySQLDataType}
 import java.io.File
-
 import java.util.NavigableMap
-
+import org.slf4j.{Logger, LoggerFactory}
 import com.google.gson.{JsonObject, JsonParser}
 import org.apache.hadoop.hbase.spark.HBaseContext
 import org.apache.hadoop.hbase.{TableName, HBaseConfiguration}
@@ -39,6 +38,8 @@ object HBaseSnapshotter {
   private type Value = Array[Byte]
   private type FamilyMap = NavigableMap[FamilyName, NavigableMap[ColumnName, NavigableMap[Timestamp, Value]]]
 
+  private val logger = LoggerFactory.getLogger(this.getClass())
+
   /**
     * Transforms the data in a hashmap into a Row object.
     * The data of the current HBase row is stored in a hash map. To store them into Hive,
@@ -62,16 +63,21 @@ object HBaseSnapshotter {
             .get(Bytes.toBytes(field.name))
             .lastEntry().getValue)
 
-          field.dataType match {
-            case IntegerType => fieldValue.toInt
-            case LongType => fieldValue.toLong
-            case DoubleType => fieldValue.toDouble
-            case _ => fieldValue
-          }
+          if (fieldValue == "NULL")
+            None
+          else
+            field.dataType match {
+              case IntegerType => fieldValue.toInt
+              case LongType => fieldValue.toLong
+              case DoubleType => fieldValue.toDouble
+              case _ => fieldValue
+            }
         }
         catch {
           case e: Exception => {
-            println(e)
+            logger.warn(field.toString())
+            logger.warn(familyMap.toString())
+            logger.warn(e.toString())
             null
           }
         }
@@ -79,7 +85,8 @@ object HBaseSnapshotter {
     Row.fromSeq(fields)
   }
 
-  def main(cmdArgs: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = {
+    val settings = new Settings(args(0))
     val conf = new SparkConf()
     conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     conf.set("spark.kryoserializer.buffer", "64k")
@@ -87,23 +94,31 @@ object HBaseSnapshotter {
     conf.setAppName("HBaseSnapshotter")
 
     val hbaseConfig = HBaseConfiguration.create()
-    hbaseConfig.set("hbase.zookeeper.quorum", Settings.hbaseZookeperQuorum)
+    hbaseConfig.set("hbase.zookeeper.quorum", settings.hbaseZookeperQuorum())
 
     val sc = new SparkContext(conf)
     val hc: HiveContext = new HiveContext(sc)
     val hbc: HBaseContext = new HBaseContext(sc, hbaseConfig)
 
-    // val schema: StructType = HBaseSchema(Settings.hbaseSchema)
-    val schema: StructType = MySQLSchema(hbc, Settings.mysqlTable, Settings.mysqlSchema, Settings.hbaseTimestamp)
+    val schema: StructType = settings.schemaType(hbc, settings)
 
     val scan = new Scan()
-    if (Settings.hbaseTimestamp > -1) scan.setTimeRange(0, Settings.hbaseTimestamp)
+    if (settings.hbaseTimestamp() > -1) scan.setTimeRange(0, settings.hbaseTimestamp())
 
-    val hbaseRDD = hbc.hbaseRDD(TableName.valueOf(Settings.hbaseTable), scan, { r: (ImmutableBytesWritable, Result) => r._2 })
+    val hbaseRDD = hbc.hbaseRDD(
+      TableName.valueOf(settings.hbaseTable()),
+      scan,
+      { r: (ImmutableBytesWritable, Result) => r._2 }
+    )
 
     val rowRDD = hbaseRDD.map({ r => transformMapToRow(r, schema, true) })
     val dataFrame = hc.createDataFrame(rowRDD, schema)
     dataFrame.show(10)
-    dataFrame.write.mode(SaveMode.Overwrite).saveAsTable(Settings.hiveTable)
+
+    dataFrame
+      .write
+      .mode(SaveMode.Overwrite)
+      .partitionBy(settings.hivePartitions()(0))
+      .saveAsTable(settings.hiveTable())
   }
 }
