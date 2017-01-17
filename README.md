@@ -12,7 +12,8 @@ HBaseSnapshotter allows you to take a snapshot from an HBase table and save it a
 ### Configuration
 HBaseSnapshotter needs a json configuration file to be provided as a positional argument ```application.json```
 
-The format of the json config should obey one the following schemas (HBaseSnapshotter.MySQLSchema or HBaseSnapshotter.HBaseSchema):
+The format of the json config should obey one the following schemas
+(`HBaseSnapshotter.MySQLSchema` or `HBaseSnapshotter.HBaseSchema`):
 
     HBaseSnapshotter {
       MySQLSchema {
@@ -32,13 +33,13 @@ The format of the json config should obey one the following schemas (HBaseSnapsh
       }
     }
 
-  * mysql.table: original replicated MySQL table (`string`)
-  * mysql.schema: schema change history table in HBase (`string`)
-  * hbase.timestamp: time before which to snapshot (`number`)
-  * hbase.zookeeper_quorum: list of HBase zookeeper nodes to establish a connection with an HBase table (`list`)
-  * hbase.table: replicated table in HBase (`string`)
-  * hbase.schema: list of columns forming the schema of the source HBase table. A column is formatted as `Familyname:Qualifiername:Typename` (`list`)
-  * hive.table: destination table for snapshot in Hive (`string`)
+  * `mysql.table`: original replicated MySQL table (`string`)
+  * `mysql.schema`: schema change history table in HBase (`string`)
+  * `hbase.timestamp`: time before which to snapshot (`number`)
+  * `hbase.zookeeper_quorum`: list of HBase zookeeper nodes to establish a connection with an HBase table (`list`)
+  * `hbase.table`: replicated table in HBase (`string`)
+  * `hbase.schema`: list of columns forming the schema of the source HBase table. A column is formatted as `Familyname:Qualifiername:Typename` (`list`)
+  * `hive.table`: destination table for snapshot in Hive (`string`)
 
 For snapshots from MySQL replication chains produced by the [Replicator](https://github.com/mysql-time-machine/replicator), the following is a valid configuration:
 
@@ -73,11 +74,19 @@ For snapshots from arbitrary HBase tables, the following is a valid configuratio
         }
     }
 
-To write a configuration file, you can start by copying the file config-default.yml and customise it to your own needs.
+To write a configuration file, you can start by copying one of the
+example files in the `conf` directory and customise it to your own
+needs.
 
 ### Hive Schema
-The resulted Hive table will have the same schema as the source HBase table, but the column names will be formatted
-as *'Familyname_Qualifiername'*. A new column will be added to the Hive table named *"k_hbase_key"* for storing the HBase key of this row. For now, the columns in Hive will be of type *string* only, but in the future you might be able to provide the types in the config file.
+The resulting Hive table will have the same schema as the source HBase
+table (as far as it can infer the original MySQL schema, or as
+completely as possible given the `hbase.schema` list. Missing
+datatypes will default to `STRING`.  A new column will be added to the
+Hive table named `k_hbase_row_key` for storing the HBase key of this
+row. For MySQL snapshots, an additional row named
+`k_replicator_row_status` will be added to the Hive table, denoting
+whether the row resulted from a schema change.
 
 ### Usage:
 
@@ -91,7 +100,6 @@ First you need to build a fat jar containing all the dependencies needed by this
 If you don't have sbt-assembly installed, take a look at this https://github.com/sbt/sbt-assembly. This will build a fat jar at this path:
 
     target/scala-2.10/HBaseSnapshotter-assembly-2.0.jar
-
 
 You can then copy this jar along with the files hbase-snapshotter and application.json to a docker container or a hadoop box supporting Spark:
 
@@ -113,15 +121,11 @@ Finally, from the docker or hadoop box, you can run the spark app via the bash s
 HBaseSnapshotter was originally developed for Booking.com. With
 approval from Booking.com, the code and specification were generalized
 and published as Open Source on github, for which the authors would
-like to express his gratitude.
+like to express their gratitude.
 
 ### LICENSE
 
-   Copyright 2016, 2017 Pedro Silva <pedro.silva@booking.com>, Bosko
-   Devetak <bosko.devetak@gmail.com>, Rares Mirica <mrares@gmail.com>,
-   Islam Hassan <eslam.mostafa@booking.com>, Raynald Chung
-   <raynald@users.noreply.github.com>, Islam Hassan
-   <fci.islam@gmail.com>
+   Copyright 2016, 2017 Bosko Devetak, Islam Hassan, Pedro Silva, Rares Mirica, Raynald Chung
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.

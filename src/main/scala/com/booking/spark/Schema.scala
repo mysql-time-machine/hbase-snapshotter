@@ -111,23 +111,24 @@ object MySQLSchema extends SnapshotterSchema {
         (columnIndex, columnName, columnType)
       }}).sortBy(_._1)
 
-    /* "hbase_row_key" will be the first column in hive land.  It is meant
-     *  to be used for deduplicating rows in delta imports containing
-     *  row updates.  (group by hbase_row_key and select the latest)
+    /* "k_hbase_row_key" will be the first column in hive land.  It is
+     *  meant to be used for deduplicating rows in delta imports
+     *  containing row updates.  (group by k_hbase_row_key and select
+     *  the latest)
      */
     val hbaseRowKey = StructField(
-      "hbase_row_key",
+      "k_hbase_row_key",
       StringType,
       false,
       Metadata.fromJson(Utils.toJson(Map("key" -> "true")))
     )
 
-    /* "row_status" is a fake column inserted by the replicator.  It denotes
-     * whether the row is the result of a schema change (deletion,
-     * update, etc)
+    /* "k_replicator_row_status" is a fake column inserted by the
+     * replicator.  It denotes whether the row is the result of a
+     * schema change (deletion, update, etc)
      */
     val hbaseRowStatus = StructField(
-      "row_status",
+      "k_replicator_row_status",
       StringType,
       false,
       Metadata.fromJson(Utils.toJson(Map("status" -> "true", "family" -> "d"))))
