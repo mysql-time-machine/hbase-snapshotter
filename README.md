@@ -88,7 +88,7 @@ row. For MySQL snapshots, an additional row named
 `k_replicator_row_status` will be added to the Hive table, denoting
 whether the row resulted from a schema change.
 
-### Usage:
+### Usage
 
     bin/hbase-snapshotter application.conf
 
