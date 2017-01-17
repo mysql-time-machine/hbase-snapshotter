@@ -1,18 +1,35 @@
 package com.booking.spark
 
-import com.booking.sql.{DataTypeParser, MySQLDataType}
-import com.cloudera.spark.hbase.HBaseContext
-import org.apache.hadoop.hbase.client.{ Result, Scan }
-import org.apache.hadoop.hbase.filter.{ FilterList, FirstKeyOnlyFilter, KeyOnlyFilter }
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable
-import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.sql.types.{ DataType, DoubleType, IntegerType, LongType, StringType, StructField, StructType, Metadata }
-import com.google.gson.{JsonParser, GsonBuilder}
-
 import scala.collection.JavaConversions._
 
+import com.booking.sql.{DataTypeParser, MySQLDataType}
+import org.apache.hadoop.hbase.spark.HBaseContext
+import com.google.gson.{GsonBuilder, JsonParser, JsonObject, Gson}
+import org.apache.log4j.{Level, Logger}
+import org.apache.hadoop.hbase.{TableName}
+import org.apache.hadoop.hbase.client.{Result, Scan}
+import org.apache.hadoop.hbase.filter.{FilterList, FirstKeyOnlyFilter, KeyOnlyFilter}
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable
+import org.apache.hadoop.hbase.util.Bytes
+import org.apache.hadoop.hbase.spark.HBaseContext
+import org.apache.spark.sql.types.{
+  DataType,
+  DoubleType,
+  IntegerType,
+  LongType,
+  Metadata,
+  StringType,
+  StructField,
+  StructType
+}
 
-object HBaseSchema {
+abstract class SnapshotterSchema {
+  protected val logger = Logger.getLogger(this.getClass())
+  logger.setLevel(Level.DEBUG)
+  def apply(hbc: HBaseContext, settings: Settings): StructType
+}
+
+object HBaseSchema extends SnapshotterSchema {
   private val gson = new GsonBuilder().create()
 
   private def hBaseToSparkSQL(dt: String): DataType = DataType.fromJson(gson.toJson(dt))
@@ -21,20 +38,28 @@ object HBaseSchema {
     StructType(fields.map( field =>
       field.split(':') match {
         case Array(family, qualifier, dt) => {
-          val metadata: Metadata = Metadata.fromJson(gson.toJson(Map("family" -> family)))
+          val datatype = hBaseToSparkSQL(dt)
+          logger.info(s"Datatype for $qualifier present in schema ($datatype)")
+          val metadata: Metadata = Metadata.fromJson(Utils.toJson(Map("family" -> family)))
           StructField(qualifier, hBaseToSparkSQL(dt), true, metadata)
+        }
+        case Array(family, qualifier) => {
+          logger.warn(s"Datatype for $qualifier is missing from schema. Defaulting to $StringType")
+          val metadata: Metadata = Metadata.fromJson(Utils.toJson(Map("family" -> family)))
+          StructField(qualifier, StringType, true, metadata)
         }
       }
     ))
   }
 
-  def apply(fields: List[String]): StructType = {
+  def apply(hbc: HBaseContext, settings: Settings): StructType = {
+    val fields: List[String] = settings.hbaseSchema()
     transformSchema(fields)
   }
 }
 
 
-object MySQLSchema {
+object MySQLSchema extends SnapshotterSchema {
   private val gson = new GsonBuilder().create()
 
   /** Convert MySQL datatype strings to Spark datatypes
@@ -43,25 +68,35 @@ object MySQLSchema {
     */
   private def mySQLToSparkSQL(s: String): DataType = {
     val dt: MySQLDataType = DataTypeParser(s)
-    dt.typename match {
-      case "TINYINT" | "SMALLINT" | "MEDIUMINT" | "INT" | "INTEGER" => IntegerType
-      case "BIGINT" => LongType
-      case "NUMERIC" | "DECIMAL" | "FLOAT" | "DOUBLE" | "REAL" => DoubleType
+    val matchedType = dt.typename match {
+      case "TINYINT" | "SMALLINT" | "MEDIUMINT" | "INT" | "INTEGER" =>
+        if (dt.qualifiers.contains("UNSIGNED")) {
+          LongType
+        }
+        else {
+          IntegerType
+        }
+      case "BIGINT" | "NUMERIC" | "DECIMAL" | "FLOAT" | "DOUBLE" | "REAL" => DoubleType
       case _ => StringType
     }
+    logger.info(s"Parsing $s as $matchedType")
+    matchedType
   }
 
 
   /** Parse schema information from MySQL to HBase dump
-    * @param table original MySQL table name
     * @param value json object with following structure:
     *     {table => { "columnIndexToNameMap": { index: name, ... },
     *                 "columnsSchema": { name: { "columnType": "sometype", ... }}}}
     * @return Spark schema
     */
-  private def transformSchema(table: String, value: String): StructType = {
+  private def transformSchema(value: String, settings: Settings): StructType = {
+    val tableName = settings.mysqlTable().split("\\.") match {
+      case Array(_db, _table) => _table
+      case Array(_table) => _table
+    }
     val schemaObject = new JsonParser().parse(value)
-    val tableSchema = schemaObject.getAsJsonObject().getAsJsonObject(table)
+    val tableSchema = schemaObject.getAsJsonObject().getAsJsonObject(tableName)
     val columnIndexToNameMap = tableSchema.getAsJsonObject("columnIndexToNameMap")
     val columnsSchema = tableSchema.getAsJsonObject("columnsSchema")
 
@@ -76,21 +111,44 @@ object MySQLSchema {
         (columnIndex, columnName, columnType)
       }}).sortBy(_._1)
 
-    return StructType(sortedSchema.map({ field =>
-      val metadata: Metadata = Metadata.fromJson(gson.toJson(Map("family" -> "d")))
-      StructField(field._2, mySQLToSparkSQL(field._3), true, metadata)
-    }))
+    /* "k_hbase_row_key" will be the first column in hive land.  It is
+     *  meant to be used for deduplicating rows in delta imports
+     *  containing row updates.  (group by k_hbase_row_key and select
+     *  the latest)
+     */
+    val hbaseRowKey = StructField(
+      "k_hbase_row_key",
+      StringType,
+      false,
+      Metadata.fromJson(Utils.toJson(Map("key" -> "true")))
+    )
+
+    /* "k_replicator_row_status" is a fake column inserted by the
+     * replicator.  It denotes whether the row is the result of a
+     * schema change (deletion, update, etc)
+     */
+    val hbaseRowStatus = StructField(
+      "k_replicator_row_status",
+      StringType,
+      false,
+      Metadata.fromJson(Utils.toJson(Map("status" -> "true", "family" -> "d"))))
+
+    return StructType(
+      hbaseRowKey +: hbaseRowStatus +:
+        sortedSchema.map({ field =>
+          val metadata: Metadata = Metadata.fromJson(Utils.toJson(Map("family" -> "d")))
+          StructField(field._2, mySQLToSparkSQL(field._3), true, metadata)
+        }))
   }
 
 
   /** Extract Spark schema from MySQL to HBase dump
-    * @param tableName Original MySQL table name
-    * @param schemaTableName HBase schema table
-    * @param timestamp Closest epoch to desired version of the schema
+    * @param hbc hbase context
     * @return Spark schema
     */
-  def apply(hbc: HBaseContext, tableName: String, schemaTableName: String, timestamp: Long): StructType = {
-
+  def apply(hbc: HBaseContext, settings: Settings): StructType = {
+    val schemaTableName = settings.mysqlSchema()
+    val timestamp = settings.hbaseTimestamp()
     /* Replicator schema dumps are keyed on timestamp, except for the
      * initial snapshot, which is keyed on "initial-snapshot".
      *  We therefore define an explicit ordering that takes it into account
@@ -111,7 +169,7 @@ object MySQLSchema {
     scan.addColumn(Bytes.toBytes("d"), Bytes.toBytes("schemaPostChange"))
     scan.setFilter(new FilterList(FilterList.Operator.MUST_PASS_ALL, new FirstKeyOnlyFilter(), new KeyOnlyFilter()))
 
-    val rdd = hbc.hbaseRDD(schemaTableName, scan, { r: (ImmutableBytesWritable, Result) => r._2 })
+    val rdd = hbc.hbaseRDD(TableName.valueOf(schemaTableName), scan, { r: (ImmutableBytesWritable, Result) => r._2 })
     val row = rdd.top(1)(keyOrdering).last.getRow()
 
     /* get correct schema json dump: since we want to use
@@ -124,7 +182,7 @@ object MySQLSchema {
     fullScan.addColumn(Bytes.toBytes("d"), Bytes.toBytes("schemaPostChange"))
     fullScan.setFilter(new FirstKeyOnlyFilter())
 
-    val fullRDD = hbc.hbaseRDD(schemaTableName, fullScan, { r: (ImmutableBytesWritable, Result) => r._2 })
+    val fullRDD = hbc.hbaseRDD(TableName.valueOf(schemaTableName), fullScan, { r: (ImmutableBytesWritable, Result) => r._2 })
 
     val value =
       Bytes.toStringBinary(
@@ -135,6 +193,6 @@ object MySQLSchema {
           .getValue()
       )
 
-    transformSchema(tableName, value)
+    transformSchema(value, settings)
   }
 }

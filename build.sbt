@@ -1,31 +1,31 @@
+name := "HBaseSnapshotter"
+version := "2.0"
+scalaVersion := "2.10.4"
+exportJars := true
+
 resolvers ++= Seq(
-  "Hadoop Releases" at "https://repository.cloudera.com/artifactory/cloudera-repos/"
+  Resolver.sonatypeRepo("public"),
+  "Cloudera repo" at "https://repository.cloudera.com/content/repositories/releases/"
 )
 
 libraryDependencies ++= Seq(
-  "com.google.guava" % "guava" % "15.0",
+  "org.apache.hbase" % "hbase-spark" % "1.2.0-cdh5.8.2",
+  "org.apache.hbase" % "hbase-common" % "1.2.0-cdh5.8.2",
+  "org.apache.hbase" % "hbase-hadoop-compat" % "1.2.0-cdh5.8.2",
+  "org.apache.hbase" % "hbase-client" % "1.2.0-cdh5.8.2",
+  "org.apache.hbase" % "hbase-server" % "1.2.0-cdh5.8.2",
+  "org.apache.spark" % "spark-core_2.10" % "1.6.0-cdh5.8.2" % "provided",
+  "org.apache.spark" % "spark-hive_2.10" % "1.6.0-cdh5.8.2" % "provided",
+  "org.apache.spark" % "spark-streaming_2.10" % "1.6.0-cdh5.8.2" % "provided",
   "com.google.code.gson" % "gson" % "2.2.4",
-  "com.github.scopt" %% "scopt" % "3.4.0",
   "com.typesafe" % "config" % "1.3.1",
-  "org.yaml" % "snakeyaml" % "1.17",
-  "org.apache.hadoop" % "hadoop-common" % "2.6.0",
-  "org.apache.hbase" % "hbase-common" % "1.0.0",
-  "org.apache.hbase" % "hbase-client" % "1.0.0",
-  "org.apache.hbase" % "hbase-server" % "1.0.0" excludeAll(
-    ExclusionRule("org.mortbay.jetty")
-  ),
-
-  "org.apache.spark" %% "spark-core" % "1.6.0" % "provided",
-  "org.apache.spark" %% "spark-hive" % "1.6.0" % "provided",
-  "org.apache.spark" %% "spark-yarn" % "1.6.0" % "provided",
-  "com.cloudera" % "spark-hbase" % "0.0.2-clabs" excludeAll(
-    ExclusionRule("org.mortbay.jetty")
-  ),
-
   "org.scalatest" %% "scalatest" % "3.0.0" % "test"
 )
 
-dependencyOverrides += "com.google.guava" % "guava" % "15.0"
+excludeDependencies ++= Seq(
+  "org.mortbay.jetty",
+  "org.cloudera.logredactor"
+)
 
 assemblyMergeStrategy in assembly := {
   case PathList("javax", "servlet", xs @ _*) => MergeStrategy.last
@@ -35,6 +35,7 @@ assemblyMergeStrategy in assembly := {
   case PathList("com", "esotericsoftware", xs @ _*) => MergeStrategy.last
   case PathList("com", "codahale", xs @ _*) => MergeStrategy.last
   case PathList("com", "yammer", xs @ _*) => MergeStrategy.last
+  case PathList("org", "slf4j", xs @ _*) => MergeStrategy.last
   case "overview.html" => MergeStrategy.rename
   case "plugin.xml" => MergeStrategy.rename
   case "parquet.thrift" => MergeStrategy.rename

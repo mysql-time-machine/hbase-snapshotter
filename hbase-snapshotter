@@ -1,3 +1,0 @@
-#!/bin/bash
-
-spark-submit --class com.booking.spark.HBaseSnapshotter --num-executors 100 target/scala-2.10/HBaseSnapshotter-assembly-1.0.jar $@
