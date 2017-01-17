@@ -1,0 +1,13 @@
+{
+    "hbase": {
+        "timestamp": -1,
+        "zookeeper_quorum": ["hbase-zk1-host", "hbase-zkN-host"],
+        "schema": ["d:column_a:integer",
+                   "d:column_b:string",
+                   "d:column_c:double"],
+        "table": "namespace:tablename:"
+    },
+    "hive": {
+        "table": "database.tablename"
+    }
+}

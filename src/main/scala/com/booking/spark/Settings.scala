@@ -3,42 +3,40 @@ package com.booking.spark
 import java.io.File
 import com.typesafe.config.{ConfigFactory, Config, ConfigRenderOptions, ConfigException}
 import scala.collection.JavaConversions._
-import org.slf4j.{Logger, LoggerFactory}
+import org.apache.log4j.{Level, Logger}
 
 class Settings(path: String) {
-  private val logger = LoggerFactory.getLogger(this.getClass())
+  private val logger = Logger.getLogger(this.getClass())
+  logger.setLevel(Level.DEBUG)
+
   private val config: Config = ConfigFactory.parseFile(new File(path))
 
-  private def formatConfig(config: Config): String = {
-    config.root().render(ConfigRenderOptions.concise().setFormatted(true))
-  }
+  private def formatConfig(config: Config): String = config.root().render(ConfigRenderOptions.concise().setFormatted(true))
 
   def getSchema(): SnapshotterSchema = {
     try {
       config.checkValid(ConfigFactory.defaultReference().getConfig("HBaseSnapshotter.MySQLSchema"))
+      logger.info(s"Detected valid $MySQLSchema")
       MySQLSchema
     } catch {
       case e: ConfigException => {
         try
         {
           config.checkValid(ConfigFactory.defaultReference().getConfig("HBaseSnapshotter.HBaseSchema"))
+          logger.info(s"Detected valid $HBaseSchema")
           HBaseSchema
         }
         catch {
           case e: ConfigException => {
             logger.error(
-              """Bad config. Your application.json:
-                 |{}
-                 |HBaseSchema format:
-                 |{}
-                 |MySQLSchema format:
-                 |{}
-                 |{}
-              """.stripMargin,
-              formatConfig(config),
-              formatConfig(ConfigFactory.defaultReference().getConfig("HBaseSnapshotter.HBaseSchema")),
-              formatConfig(ConfigFactory.defaultReference().getConfig("HBaseSnapshotter.MySQLSchema")),
-              e)
+              s"""Bad config. Your application.json:
+                  |${formatConfig(config)}
+                  |HBaseSchema format:
+                  |${formatConfig(ConfigFactory.defaultReference().getConfig("HBaseSnapshotter.HBaseSchema"))}
+                  |MySQLSchema format:
+                  |${formatConfig(ConfigFactory.defaultReference().getConfig("HBaseSnapshotter.MySQLSchema"))}
+                  |$e
+              """.stripMargin)
             System.exit(1)
             HBaseSchema
           }
@@ -55,5 +53,4 @@ class Settings(path: String) {
   def hbaseSchema(): List[String]  = config.getStringList("hbase.schema").toList
   def hbaseTable(): String = config.getString("hbase.table")
   def hiveTable(): String = config.getString("hive.table")
-  def hivePartitions(): List[String] = config.getStringList("hive.partitions").toList
 }

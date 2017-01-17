@@ -19,10 +19,7 @@ libraryDependencies ++= Seq(
   "org.apache.spark" % "spark-streaming_2.10" % "1.6.0-cdh5.8.2" % "provided",
   "com.google.code.gson" % "gson" % "2.2.4",
   "com.typesafe" % "config" % "1.3.1",
-  "org.slf4j" % "slf4j-api" % "1.7.5",
-  "org.slf4j" % "slf4j-simple" % "1.7.5",
   "org.scalatest" %% "scalatest" % "3.0.0" % "test"
-
 )
 
 excludeDependencies ++= Seq(

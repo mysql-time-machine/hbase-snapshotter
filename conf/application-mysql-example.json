@@ -1,0 +1,14 @@
+{
+    "mysql": {
+        "table": "database.Tablename",
+        "schema": "schema_history:database"
+    },
+    "hbase": {
+        "timestamp": -1,
+        "zookeeper_quorum": ["hbase-zk1-host", "hbase-zkN-host"],
+        "table": "namespace:tablename"
+    },
+    "hive": {
+        "table": "database.tablename"
+    }
+}

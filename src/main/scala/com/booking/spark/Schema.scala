@@ -5,6 +5,7 @@ import scala.collection.JavaConversions._
 import com.booking.sql.{DataTypeParser, MySQLDataType}
 import org.apache.hadoop.hbase.spark.HBaseContext
 import com.google.gson.{GsonBuilder, JsonParser, JsonObject, Gson}
+import org.apache.log4j.{Level, Logger}
 import org.apache.hadoop.hbase.{TableName}
 import org.apache.hadoop.hbase.client.{Result, Scan}
 import org.apache.hadoop.hbase.filter.{FilterList, FirstKeyOnlyFilter, KeyOnlyFilter}
@@ -22,7 +23,9 @@ import org.apache.spark.sql.types.{
   StructType
 }
 
-trait SnapshotterSchema {
+abstract class SnapshotterSchema {
+  protected val logger = Logger.getLogger(this.getClass())
+  logger.setLevel(Level.DEBUG)
   def apply(hbc: HBaseContext, settings: Settings): StructType
 }
 
@@ -35,8 +38,15 @@ object HBaseSchema extends SnapshotterSchema {
     StructType(fields.map( field =>
       field.split(':') match {
         case Array(family, qualifier, dt) => {
+          val datatype = hBaseToSparkSQL(dt)
+          logger.info(s"Datatype for $qualifier present in schema ($datatype)")
           val metadata: Metadata = Metadata.fromJson(Utils.toJson(Map("family" -> family)))
           StructField(qualifier, hBaseToSparkSQL(dt), true, metadata)
+        }
+        case Array(family, qualifier) => {
+          logger.warn(s"Datatype for $qualifier is missing from schema. Defaulting to $StringType")
+          val metadata: Metadata = Metadata.fromJson(Utils.toJson(Map("family" -> family)))
+          StructField(qualifier, StringType, true, metadata)
         }
       }
     ))
@@ -58,13 +68,19 @@ object MySQLSchema extends SnapshotterSchema {
     */
   private def mySQLToSparkSQL(s: String): DataType = {
     val dt: MySQLDataType = DataTypeParser(s)
-    dt.typename match {
+    val matchedType = dt.typename match {
       case "TINYINT" | "SMALLINT" | "MEDIUMINT" | "INT" | "INTEGER" =>
-        if (dt.qualifiers.contains("UNSIGNED")) LongType
-        else IntegerType
+        if (dt.qualifiers.contains("UNSIGNED")) {
+          LongType
+        }
+        else {
+          IntegerType
+        }
       case "BIGINT" | "NUMERIC" | "DECIMAL" | "FLOAT" | "DOUBLE" | "REAL" => DoubleType
       case _ => StringType
     }
+    logger.info(s"Parsing $s as $matchedType")
+    matchedType
   }
 
 

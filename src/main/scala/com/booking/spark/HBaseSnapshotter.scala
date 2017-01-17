@@ -3,7 +3,7 @@ package com.booking.spark
 import com.booking.sql.{DataTypeParser, MySQLDataType}
 import java.io.File
 import java.util.NavigableMap
-import org.slf4j.{Logger, LoggerFactory}
+import org.apache.log4j.{Level, Logger}
 import com.google.gson.{JsonObject, JsonParser}
 import org.apache.hadoop.hbase.spark.HBaseContext
 import org.apache.hadoop.hbase.{TableName, HBaseConfiguration}
@@ -38,7 +38,8 @@ object HBaseSnapshotter {
   private type Value = Array[Byte]
   private type FamilyMap = NavigableMap[FamilyName, NavigableMap[ColumnName, NavigableMap[Timestamp, Value]]]
 
-  private val logger = LoggerFactory.getLogger(this.getClass())
+  private val logger = Logger.getLogger(this.getClass())
+  logger.setLevel(Level.DEBUG)
 
   /**
     * Transforms the data in a hashmap into a Row object.
@@ -86,6 +87,11 @@ object HBaseSnapshotter {
   }
 
   def main(args: Array[String]): Unit = {
+    if (args.length < 1) {
+      System.err.println(s"usage: hbase-snapshotter application.conf")
+      System.exit(1)
+    }
+
     val settings = new Settings(args(0))
     val conf = new SparkConf()
     conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
@@ -99,26 +105,21 @@ object HBaseSnapshotter {
     val sc = new SparkContext(conf)
     val hc: HiveContext = new HiveContext(sc)
     val hbc: HBaseContext = new HBaseContext(sc, hbaseConfig)
-
     val schema: StructType = settings.schemaType(hbc, settings)
-
     val scan = new Scan()
     if (settings.hbaseTimestamp() > -1) scan.setTimeRange(0, settings.hbaseTimestamp())
 
     val hbaseRDD = hbc.hbaseRDD(
       TableName.valueOf(settings.hbaseTable()),
       scan,
-      { r: (ImmutableBytesWritable, Result) => r._2 }
-    )
+      { r: (ImmutableBytesWritable, Result) => r._2 })
 
     val rowRDD = hbaseRDD.map({ r => transformMapToRow(r, schema, true) })
     val dataFrame = hc.createDataFrame(rowRDD, schema)
-    dataFrame.show(10)
 
     dataFrame
       .write
       .mode(SaveMode.Overwrite)
-      .partitionBy(settings.hivePartitions()(0))
       .saveAsTable(settings.hiveTable())
   }
 }
