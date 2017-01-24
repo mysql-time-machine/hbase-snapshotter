@@ -1,3 +1,8 @@
 .idea
 target/
 /application.json
+/.ensime
+.ensime_cache
+dist
+/application-hbase-example.json
+/application-mysql-example.json
