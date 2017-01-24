@@ -1,3 +1,29 @@
 #!/bin/sh
 
-spark-submit target/scala-2.10/HBaseSnapshotter-assembly-2.0.jar application.json $@
+_DEV_JAR_ROOT=target/scala-2.10
+_DIST_JAR_ROOT=lib
+JAR=HBaseSnapshotter-assembly-2.0.jar
+
+if [ "$#" -lt 1 ] || [ ! -f $1 ]; then
+    echo "usage: hbase-snapshotter <config> [spark-submit-args...]"
+    exit -1
+fi
+
+if [ -f "$_DEV_JAR_ROOT/$JAR" ]; then
+    JAR="$_DEV_JAR_ROOT/$JAR"
+
+elif [ -f "$_DIST_JAR_ROOT/$JAR" ]; then
+    JAR="$_DIST_JAR_ROOT/$JAR"
+
+elif [ -f "$SNAPSHOTTER_HOME/$_DEV_JAR_ROOT/$JAR" ]; then
+    JAR="$SNAPSHOTTER_HOME/$JAR"
+
+elif [ -f "$SNAPSHOTTER_HOME/$_DIST_JAR_ROOT/$JAR" ]; then
+    JAR="$SNAPSHOTTER_HOME/$JAR"
+
+else
+    echo "Please setup SNAPSHOTTER_HOME to your hbase-snapshotter installation!"
+    exit -1
+fi
+
+spark-submit "$JAR" $@
