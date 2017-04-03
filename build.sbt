@@ -1,5 +1,5 @@
 name := "HBaseSnapshotter"
-version := "2.1"
+version := "2.2"
 scalaVersion := "2.10.4"
 exportJars := true
 
