@@ -19,9 +19,19 @@ class DataTypeParserSpec extends FlatSpec with Matchers {
     assert(dt.typename == "ENUM")
   }
 
+  it should "parse sets" in {
+    val dt: MySQLDataType = DataTypeParser("set('one', '', 'two')")
+    assert(dt.typename == "SET")
+  }
+
   it should "parse enum values" in {
     val dt: MySQLDataType = DataTypeParser("enum('ok','cancelled_by_hotel','cancelled_by_guest','fraudulent','test','no_show','unknown','overbooking','cancelled_by_booking')")
     assert(dt.enumeration == Seq("ok","cancelled_by_hotel","cancelled_by_guest","fraudulent","test","no_show","unknown","overbooking","cancelled_by_booking"))
+  }
+
+  it should "parse set values" in {
+    val dt: MySQLDataType = DataTypeParser("set('one', '', 'two')")
+    assert(dt.enumeration == Seq("one","","two"))
   }
 
   it should "parse precision" in {

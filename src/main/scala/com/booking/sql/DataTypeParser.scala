@@ -17,6 +17,9 @@ object DataTypeParser extends JavaTokenParsers {
     "enum" ~> enumeration ^^ {
       case e => new MySQLDataType("ENUM", e, None, Seq(), Map())
     } |
+  "set" ~> enumeration ^^ {
+    case e => new MySQLDataType("SET", e, None, Seq(), Map())
+  } |
   typename ~ (precision?) ~ (qualifier*) ~ (attribute*) ^^ {
     case t ~ p ~ Seq(q) ~ a => new MySQLDataType(t.toUpperCase(), Seq(), p, Seq(q), a.toMap)
     case t ~ p ~ q ~ a => new MySQLDataType(t.toUpperCase(), Seq(), p, q, a.toMap)
