@@ -16,14 +16,17 @@ elif [ -f "$_DIST_JAR_ROOT/$JAR" ]; then
     JAR="$_DIST_JAR_ROOT/$JAR"
 
 elif [ -f "$SNAPSHOTTER_HOME/$_DEV_JAR_ROOT/$JAR" ]; then
-    JAR="$SNAPSHOTTER_HOME/$JAR"
+    JAR="$SNAPSHOTTER_HOME/$_DEV_JAR_ROOT/$JAR"
 
 elif [ -f "$SNAPSHOTTER_HOME/$_DIST_JAR_ROOT/$JAR" ]; then
-    JAR="$SNAPSHOTTER_HOME/$JAR"
+    JAR="$SNAPSHOTTER_HOME/$_DIST_JAR_ROOT/$JAR"
 
 else
     echo "Please setup SNAPSHOTTER_HOME to your hbase-snapshotter installation!"
     exit -1
 fi
 
-spark-submit "$JAR" $@
+config="$1"
+shift
+
+spark-submit "$JAR" "$config" "$@"
