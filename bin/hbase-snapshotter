@@ -9,6 +9,8 @@ if [ "$#" -lt 1 ] || [ ! -f $1 ]; then
     exit -1
 fi
 
+SNAPSHOTTER_HOME="$(dirname $(dirname $0))"
+
 if [ -f "$_DEV_JAR_ROOT/$JAR" ]; then
     JAR="$_DEV_JAR_ROOT/$JAR"
 
