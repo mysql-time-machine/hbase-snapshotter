@@ -1,5 +1,5 @@
-_NAME = HBaseSnapshotter-2.2
-_JAR = target/scala-2.10/HBaseSnapshotter-assembly-2.2.jar
+_NAME = HBaseSnapshotter-2.3
+_JAR = target/scala-2.10/HBaseSnapshotter-assembly-2.3.jar
 
 all: $(_JAR)
 
