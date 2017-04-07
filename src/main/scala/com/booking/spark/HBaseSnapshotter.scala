@@ -3,6 +3,7 @@ package com.booking.spark
 import com.booking.sql.{DataTypeParser, MySQLDataType}
 import java.io.File
 import java.util.NavigableMap
+import java.sql.Timestamp
 import org.apache.log4j.{Level, Logger}
 import com.google.gson.{JsonObject, JsonParser}
 import org.apache.hadoop.hbase.spark.HBaseContext
@@ -23,7 +24,8 @@ import org.apache.spark.sql.types.
     DoubleType,
     IntegerType,
     LongType,
-    StringType
+    StringType,
+    TimestampType
   }
 
 /**
@@ -32,9 +34,7 @@ import org.apache.spark.sql.types.
   */
 object HBaseSnapshotter {
   /* Readable type structure returned by the hbase client */
-  private type FamilyName = Array[Byte]
   private type ColumnName = Array[Byte]
-  private type Timestamp = java.lang.Long
   private type Value = Array[Byte]
   private type FamilyMap = NavigableMap[ColumnName, Value]
 
@@ -72,13 +72,15 @@ object HBaseSnapshotter {
 
             if (fieldValue == "NULL")
               None
-            else
+            else {
               field.dataType match {
                 case IntegerType => fieldValue.toInt
                 case LongType => fieldValue.toLong
                 case DoubleType => fieldValue.toDouble
+                case TimestampType => new java.sql.Timestamp(fieldValue.toLong)
                 case _ => fieldValue
               }
+            }
           }
           catch {
             case e: Exception => {

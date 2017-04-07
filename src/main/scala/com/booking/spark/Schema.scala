@@ -17,6 +17,7 @@ import org.apache.spark.sql.types.{
   DoubleType,
   IntegerType,
   LongType,
+  TimestampType,
   Metadata,
   StringType,
   StructField,
@@ -77,6 +78,7 @@ object MySQLSchema extends SnapshotterSchema {
           IntegerType
         }
       case "BIGINT" | "NUMERIC" | "DECIMAL" | "FLOAT" | "DOUBLE" | "REAL" => DoubleType
+      case "TIMESTAMP" => TimestampType
       case _ => StringType
     }
     logger.info(s"Parsing $s as $matchedType")
