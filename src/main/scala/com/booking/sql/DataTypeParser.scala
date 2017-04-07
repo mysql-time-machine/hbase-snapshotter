@@ -13,16 +13,15 @@ object DataTypeParser extends JavaTokenParsers {
   val qualifiers = Seq("UNSIGNED", "ZEROFILL", "BINARY")
   val attributes = Seq("CHARACTER SET", "COLLATE")
 
-  def datatypeSpec: Parser[MySQLDataType] =
-    "enum" ~> enumeration ^^ {
-      case e => new MySQLDataType("ENUM", e, None, Seq(), Map())
+  def datatypeSpec: Parser[MySQLDataType] = {
+    typename ~ enumeration ^^ {
+      case t ~ e if t matches "(?i)enum" => new MySQLDataType("ENUM", e, None, Seq(), Map())
+      case t ~ e if t matches "(?i)set" => new MySQLDataType("SET", e, None, Seq(), Map())
     } |
-  "set" ~> enumeration ^^ {
-    case e => new MySQLDataType("SET", e, None, Seq(), Map())
-  } |
-  typename ~ (precision?) ~ (qualifier*) ~ (attribute*) ^^ {
-    case t ~ p ~ Seq(q) ~ a => new MySQLDataType(t.toUpperCase(), Seq(), p, Seq(q), a.toMap)
-    case t ~ p ~ q ~ a => new MySQLDataType(t.toUpperCase(), Seq(), p, q, a.toMap)
+    typename ~ (precision?) ~ (qualifier*) ~ (attribute*) ^^ {
+      case t ~ p ~ Seq(q) ~ a => new MySQLDataType(t.toUpperCase(), Seq(), p, Seq(q.toUpperCase()), a.toMap)
+      case t ~ p ~ q ~ a => new MySQLDataType(t.toUpperCase(), Seq(), p, q.map(_.toUpperCase), a.toMap)
+    }
   }
 
   def typename: Parser[String] = makeRegex(typenames, true)

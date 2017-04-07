@@ -131,7 +131,11 @@ object MySQLSchema extends SnapshotterSchema {
       "k_replicator_row_status",
       StringType,
       false,
-      Metadata.fromJson(Utils.toJson(Map("status" -> "true", "family" -> "d"))))
+      Metadata.fromJson(Utils.toJson(Map(
+        "status" -> "true",
+        "family" -> "d",
+        "qualifier" -> "row_status"
+      ))))
 
     return StructType(
       hbaseRowKey +: hbaseRowStatus +:

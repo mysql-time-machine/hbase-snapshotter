@@ -36,10 +36,11 @@ object HBaseSnapshotter {
   private type ColumnName = Array[Byte]
   private type Timestamp = java.lang.Long
   private type Value = Array[Byte]
-  private type FamilyMap = NavigableMap[FamilyName, NavigableMap[ColumnName, NavigableMap[Timestamp, Value]]]
+  private type FamilyMap = NavigableMap[ColumnName, Value]
 
   private val logger = Logger.getLogger(this.getClass())
   logger.setLevel(Level.DEBUG)
+
 
   /**
     * Transforms the data in a hashmap into a Row object.
@@ -53,35 +54,41 @@ object HBaseSnapshotter {
     * @return an object of type Row holding the row data.
     */
   def transformMapToRow(result: Result, schema: StructType, keepKey: Boolean): Row = {
-    val familyMap: FamilyMap = result.getMap()
     val fields = for (field: StructField <- schema.fields) yield {
+
       if (keepKey && field.metadata.contains("key"))
         Bytes.toStringBinary(result.getRow())
-      else
-        try {
-          val fieldValue: String = Bytes.toStringBinary(familyMap
-            .get(Bytes.toBytes(field.metadata.getString("family")))
-            .get(Bytes.toBytes(field.name))
-            .lastEntry().getValue)
 
-          if (fieldValue == "NULL")
-            None
-          else
-            field.dataType match {
-              case IntegerType => fieldValue.toInt
-              case LongType => fieldValue.toLong
-              case DoubleType => fieldValue.toDouble
-              case _ => fieldValue
-            }
-        }
-        catch {
-          case e: Exception => {
-            logger.warn(field.toString())
-            logger.warn(familyMap.toString())
-            logger.warn(e.toString())
-            null
+      else {
+        val family = Bytes.toBytes(field.metadata.getString("family"))
+        val familyMap: FamilyMap = result.getFamilyMap(family)
+
+        if (keepKey && field.metadata.contains("status"))
+          Bytes.toStringBinary(familyMap.get(Bytes.toBytes(field.metadata.getString("qualifier"))))
+
+        else
+          try {
+            val fieldValue: String = Bytes.toStringBinary(familyMap.get(Bytes.toBytes(field.name)))
+
+            if (fieldValue == "NULL")
+              None
+            else
+              field.dataType match {
+                case IntegerType => fieldValue.toInt
+                case LongType => fieldValue.toLong
+                case DoubleType => fieldValue.toDouble
+                case _ => fieldValue
+              }
           }
-        }
+          catch {
+            case e: Exception => {
+              logger.error(field.toString())
+              logger.error(familyMap.toString())
+              logger.error(e.toString())
+              throw e
+            }
+          }
+      }
     }
     Row.fromSeq(fields)
   }

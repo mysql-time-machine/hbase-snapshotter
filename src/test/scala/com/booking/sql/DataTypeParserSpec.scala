@@ -45,8 +45,10 @@ class DataTypeParserSpec extends FlatSpec with Matchers {
   }
 
   it should "parse qualifiers" in {
-    val dt: MySQLDataType = DataTypeParser("INTEGER UNSIGNED ZEROFILL")
-    assert(dt.qualifiers == Seq("UNSIGNED", "ZEROFILL"))
+    val dt: MySQLDataType = DataTypeParser("int(10) unsigned")
+    assert(dt.typename == "INT")
+    assert(dt.qualifiers == Seq("UNSIGNED"))
+    assert(dt.qualifiers.contains("UNSIGNED"))
   }
 
   it should "parse attributes" in {
