@@ -14,6 +14,7 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.spark.HBaseContext
 import org.apache.spark.sql.types.{
   DataType,
+  DateType,
   DoubleType,
   IntegerType,
   LongType,
@@ -71,14 +72,12 @@ object MySQLSchema extends SnapshotterSchema {
     val dt: MySQLDataType = DataTypeParser(s)
     val matchedType = dt.typename match {
       case "TINYINT" | "SMALLINT" | "MEDIUMINT" | "INT" | "INTEGER" =>
-        if (dt.qualifiers.contains("UNSIGNED")) {
-          LongType
-        }
-        else {
-          IntegerType
-        }
+        if (dt.qualifiers.contains("UNSIGNED")) LongType
+        else IntegerType
       case "BIGINT" | "NUMERIC" | "DECIMAL" | "FLOAT" | "DOUBLE" | "REAL" => DoubleType
       case "TIMESTAMP" => TimestampType
+      // TODO(psilva): this requires Hive 1.2/3 suppport
+      // case "DATE" => DateType
       case _ => StringType
     }
     logger.info(s"Parsing $s as $matchedType")

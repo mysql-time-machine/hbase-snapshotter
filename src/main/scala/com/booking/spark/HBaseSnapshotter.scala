@@ -3,7 +3,8 @@ package com.booking.spark
 import com.booking.sql.{DataTypeParser, MySQLDataType}
 import java.io.File
 import java.util.NavigableMap
-import java.sql.Timestamp
+import java.sql.{Timestamp,Date}
+import java.text.SimpleDateFormat
 import org.apache.log4j.{Level, Logger}
 import com.google.gson.{JsonObject, JsonParser}
 import org.apache.hadoop.hbase.spark.HBaseContext
@@ -21,6 +22,7 @@ import org.apache.spark.sql.types.
     StructField,
     StructType,
     DataType,
+    DateType,
     DoubleType,
     IntegerType,
     LongType,
@@ -70,7 +72,7 @@ object HBaseSnapshotter {
           try {
             val fieldValue: String = Bytes.toStringBinary(familyMap.get(Bytes.toBytes(field.name)))
 
-            if (fieldValue == "NULL")
+            if (fieldValue.toUpperCase() == "NULL")
               None
             else {
               field.dataType match {
@@ -78,6 +80,14 @@ object HBaseSnapshotter {
                 case LongType => fieldValue.toLong
                 case DoubleType => fieldValue.toDouble
                 case TimestampType => new java.sql.Timestamp(fieldValue.toLong)
+                // TODO(psilva): This is a NOOP for now, until
+                // MySQLSchema actually emits DateType for mysql date
+                // types. It will do so when Hive Parquet Date type
+                // support is more prevalent (ie: as of Hive 1.2/3)
+                case DateType => {
+                  val sdf: SimpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+                  new java.sql.Date(sdf.parse(fieldValue).getTime());
+                }
                 case _ => fieldValue
               }
             }
