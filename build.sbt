@@ -18,7 +18,7 @@ libraryDependencies ++= Seq(
   "org.apache.spark" % "spark-hive_2.10" % "1.6.0-cdh5.8.2" % "provided",
   "org.apache.spark" % "spark-streaming_2.10" % "1.6.0-cdh5.8.2" % "provided",
   "com.google.code.gson" % "gson" % "2.2.4",
-  "com.typesafe" % "config" % "1.3.1",
+  "com.typesafe" % "config" % "1.2.1",
   "org.scalatest" %% "scalatest" % "3.0.0" % "test"
 )
 
