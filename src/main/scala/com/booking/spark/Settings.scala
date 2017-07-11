@@ -5,11 +5,11 @@ import com.typesafe.config.{ConfigFactory, Config, ConfigRenderOptions, ConfigEx
 import scala.collection.JavaConversions._
 import org.apache.log4j.{Level, Logger}
 
-class Settings(path: String) {
+class Settings() {
   private val logger = Logger.getLogger(this.getClass())
   logger.setLevel(Level.DEBUG)
 
-  private val config: Config = ConfigFactory.parseFile(new File(path))
+  private val config: Config = ConfigFactory.load()
 
   private def formatConfig(config: Config): String = config.root().render(ConfigRenderOptions.concise().setFormatted(true))
 

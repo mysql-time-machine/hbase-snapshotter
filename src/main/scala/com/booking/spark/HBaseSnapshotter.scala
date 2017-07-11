@@ -106,12 +106,7 @@ object HBaseSnapshotter {
   }
 
   def main(args: Array[String]): Unit = {
-    if (args.length < 1) {
-      System.err.println(s"usage: hbase-snapshotter application.conf")
-      System.exit(1)
-    }
-
-    val settings = new Settings(args(0))
+    val settings = new Settings()
     val conf = new SparkConf()
     conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     conf.set("spark.kryoserializer.buffer", "64k")

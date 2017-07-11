@@ -2,7 +2,7 @@
 
 _DEV_JAR_ROOT=target/scala-2.10
 _DIST_JAR_ROOT=lib
-JAR=HBaseSnapshotter-assembly-2.6.jar
+JAR=HBaseSnapshotter-assembly-2.7.jar
 
 if [ "$#" -lt 1 ] || [ ! -f $1 ]; then
     echo "usage: hbase-snapshotter <config> [spark-submit-args...]"
@@ -31,4 +31,4 @@ fi
 config="$1"
 shift
 
-spark-submit "$JAR" "$config" "$@"
+spark-submit --conf "spark.driver.extraJavaOptions=-Dconfig.file=$config" "$JAR" "$@"
