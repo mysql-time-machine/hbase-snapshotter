@@ -6,7 +6,7 @@ import com.booking.sql.{DataTypeParser, MySQLDataType}
 import org.apache.hadoop.hbase.spark.HBaseContext
 import com.google.gson.{GsonBuilder, JsonParser, JsonObject, Gson}
 import org.apache.log4j.{Level, Logger}
-import org.apache.hadoop.hbase.{TableName}
+import org.apache.hadoop.hbase.{TableName, TableNotFoundException}
 import org.apache.hadoop.hbase.client.{Result, Scan}
 import org.apache.hadoop.hbase.filter.{FilterList, FirstKeyOnlyFilter, KeyOnlyFilter}
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
@@ -98,7 +98,15 @@ object MySQLSchema extends SnapshotterSchema {
     }
     val schemaObject = new JsonParser().parse(value)
     val tableSchema = schemaObject.getAsJsonObject().getAsJsonObject(tableName)
-    val columnIndexToNameMap = tableSchema.getAsJsonObject("columnIndexToNameMap")
+    val columnIndexToNameMap = try {
+      tableSchema.getAsJsonObject("columnIndexToNameMap")
+    } catch {
+      case e: NullPointerException => {
+        logger.error(s"""Schema history table (${value}) does not contain columnIndexToNameMap""")
+        System.exit(1)
+        new JsonObject
+      }
+    }
     val columnsSchema = tableSchema.getAsJsonObject("columnsSchema")
 
     val sortedSchema: Seq[(Int, String, String)] =
@@ -175,7 +183,15 @@ object MySQLSchema extends SnapshotterSchema {
     scan.setFilter(new FilterList(FilterList.Operator.MUST_PASS_ALL, new FirstKeyOnlyFilter(), new KeyOnlyFilter()))
 
     val rdd = hbc.hbaseRDD(TableName.valueOf(schemaTableName), scan, { r: (ImmutableBytesWritable, Result) => r._2 })
-    val row = rdd.top(1)(keyOrdering).last.getRow()
+    val row = try {
+      rdd.top(1)(keyOrdering).last.getRow()
+    } catch {
+      case e: TableNotFoundException => {
+        logger.error(s"""Schema history table not found: ${schemaTableName}""")
+        System.exit(1)
+        Array[Byte]()
+      }
+    }
 
     /* get correct schema json dump: since we want to use
      * HBaseContext.hbaseRDD, we need to use a Scan object. However,
