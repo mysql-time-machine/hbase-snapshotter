@@ -2,7 +2,7 @@ package com.booking.sql
 
 import scala.language.postfixOps
 import scala.util.matching.Regex
-import scala.util.parsing.combinator.JavaTokenParsers
+import scala.util.parsing.combinator.{Parser,JavaTokenParsers}
 
 case class MySQLPrecision(precision: Int, scale: Option[Int])
 case class MySQLDataType(typename: String, enumeration: Seq[String], precision: Option[MySQLPrecision], qualifiers: Seq[String], attributes: Map[String, String])

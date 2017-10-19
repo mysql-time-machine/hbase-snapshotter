@@ -1,6 +1,6 @@
 name := "HBaseSnapshotter"
-version := "2.7"
-scalaVersion := "2.10.4"
+version := "2.8"
+scalaVersion := "2.12.3"
 exportJars := true
 
 resolvers ++= Seq(
@@ -9,7 +9,9 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.apache.hbase" % "hbase-spark" % "1.2.0-cdh5.8.2",
+  // "org.apache.hbase" % "hbase-spark" % "1.2.0-cdh5.8.2",
+  "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6",
+  "org.apache.hbase" % "hbase-spark" % "2.0.0-alpha3",
   "org.apache.hbase" % "hbase-common" % "1.2.0-cdh5.8.2",
   "org.apache.hbase" % "hbase-hadoop-compat" % "1.2.0-cdh5.8.2",
   "org.apache.hbase" % "hbase-client" % "1.2.0-cdh5.8.2",

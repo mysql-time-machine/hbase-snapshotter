@@ -175,7 +175,14 @@ object MySQLSchema extends SnapshotterSchema {
     scan.setFilter(new FilterList(FilterList.Operator.MUST_PASS_ALL, new FirstKeyOnlyFilter(), new KeyOnlyFilter()))
 
     val rdd = hbc.hbaseRDD(TableName.valueOf(schemaTableName), scan, { r: (ImmutableBytesWritable, Result) => r._2 })
-    val row = rdd.top(1)(keyOrdering).last.getRow()
+    val row = try {
+      rdd.top(1)(keyOrdering).last.getRow()
+    } catch {
+      case e: TableNotFoundException => {
+        logger.error(s"""Schema history table not found: ${schemaTablename}""")
+        System.exit(1)
+      }
+    }
 
     /* get correct schema json dump: since we want to use
      * HBaseContext.hbaseRDD, we need to use a Scan object. However,
