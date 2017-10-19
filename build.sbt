@@ -1,6 +1,6 @@
 name := "HBaseSnapshotter"
-version := "2.7"
-scalaVersion := "2.10.4"
+version := "2.8"
+scalaVersion in ThisBuild := "2.10.4"
 exportJars := true
 
 resolvers ++= Seq(
